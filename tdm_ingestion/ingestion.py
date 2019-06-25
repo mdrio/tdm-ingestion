@@ -2,7 +2,7 @@
 
 import uuid
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List
 
 
@@ -30,14 +30,15 @@ class RefMeasure(Measure):
 
 
 class TimeSeries:
-    def __init__(self, utc_time: datetime, sensorcode: uuid.UUID, measure: Measure):
-
+    def __init__(self, utc_time: datetime, sensorcode: uuid.UUID,
+                 measure: Measure):
         self.time = utc_time
         self.sensorcode = sensorcode
         self.measure = measure
 
     def to_dict(self, time_format: str = '%Y-%m-%dT%H:%M:%SZ') -> dict:
-        return {'time': self.time.strftime(time_format), 'sensorcode': str(self.sensorcode),
+        return {'time': self.time.strftime(time_format),
+                'sensorcode': str(self.sensorcode),
                 'measure': self.measure.to_dict()}
 
 
@@ -50,7 +51,8 @@ class Message:
 class Consumer(ABC):
 
     @abstractmethod
-    def poll(self, timeout_s: int = -1, max_records: int = -1) -> List[Message]:
+    def poll(self, timeout_s: int = -1, max_records: int = -1) -> List[
+        Message]:
         pass
 
 
@@ -69,14 +71,22 @@ class MessageConverter(ABC):
         return uuid.uuid5(uuid.NAMESPACE_DNS, _id)
 
 
-class Ingester:
-    def __init__(self, consumer: Consumer, storage: Storage, converter: MessageConverter):
+class Ingester(ABC):
+    @abstractmethod
+    def process(self, timeout_s: int = -1, max_records: int = 1):
+        pass
+
+
+class BasicIngester(Ingester):
+    def __init__(self, consumer: Consumer, storage: Storage,
+                 converter: MessageConverter):
         self.consumer = consumer
         self.storage = storage
         self.converter = converter
 
     def process(self, timeout_s: int = -1, max_records: int = 1):
-        self.storage.write(self.converter.convert(self.consumer.poll(timeout_s, max_records)))
+        self.storage.write(
+            self.converter.convert(self.consumer.poll(timeout_s, max_records)))
 
 
 if __name__ == '__main__':
@@ -111,8 +121,10 @@ if __name__ == '__main__':
     with open(args.conf_file, 'r') as conf_file:
         conf = yaml.safe_load(conf_file)
         logging.debug('conf %s', conf)
-        storage = import_class(conf['storage']['class'])(**conf['storage']['args'])
-        consumer = import_class(conf['consumer']['class'])(**conf['consumer']['args'])
+        storage = import_class(conf['storage']['class'])(
+            **conf['storage']['args'])
+        consumer = import_class(conf['consumer']['class'])(
+            **conf['consumer']['args'])
         ingester_process_args = conf['ingester']['process']
 
     ingester = Ingester(consumer, storage, NgsiConverter())
