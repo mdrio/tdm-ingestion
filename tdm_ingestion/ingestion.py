@@ -79,7 +79,11 @@ class MessageConverter(ABC):
 
 class Ingester(ABC):
     @abstractmethod
-    def process(self, timeout_s: int = -1, max_records: int = 1):
+    def process(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    def process_forever(self, *args, **kwargs):
         pass
 
 
@@ -90,9 +94,16 @@ class BasicIngester(Ingester):
         self.storage = storage
         self.converter = converter
 
-    def process(self, timeout_s: int = -1, max_records: int = 1):
+    def process(self, *args, **kwargs):
         self.storage.write(
-            self.converter.convert(self.consumer.poll(timeout_s, max_records)))
+            self.converter.convert(self.consumer.poll(*args, **kwargs)))
+
+    def process_forever(self, *args, **kwargs):
+        while True:
+            try:
+                self.process(*args, **kwargs)
+            except Exception as ex:
+                logging.exception(ex)
 
 
 if __name__ == '__main__':
@@ -133,10 +144,5 @@ if __name__ == '__main__':
             **conf['consumer']['args'])
         ingester_process_args = conf['ingester']['process']
 
-    ingester = Ingester(consumer, storage, NgsiConverter())
-
-    while True:
-        try:
-            ingester.process(**ingester_process_args)
-        except Exception as ex:
-            logging.exception(ex)
+    ingester = BasicIngester(consumer, storage, NgsiConverter())
+    ingester.process_forever(**ingester_process_args)

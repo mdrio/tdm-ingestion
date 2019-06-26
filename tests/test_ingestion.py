@@ -2,15 +2,27 @@ import datetime
 import unittest
 import uuid
 
-from tdm_ingestion.ingestion import Ingester, TimeSeries, ValueMeasure
+from tdm_ingestion.ingesters.async_ingester import async_ingester_factory
+from tdm_ingestion.ingestion import TimeSeries, ValueMeasure, \
+    BasicIngester
 from tests.dummies import DummyConsumer, DummyStorage, DummyConverter
 
 
 class TestIngester(unittest.TestCase):
 
-    def test_process(self):
+    def test_basic_ingester(self):
         storage = DummyStorage()
-        ingester = Ingester(DummyConsumer(), storage, DummyConverter())
+        ingester = BasicIngester(DummyConsumer(), storage, DummyConverter())
+        ingester.process()
+        self.assertEqual(len(storage.messages), 1)
+
+    def test_async_ingester(self):
+        storage = DummyStorage()
+        ingester = async_ingester_factory([
+            (DummyConsumer().poll, {}),
+            (DummyConverter().convert, {}),
+            (storage.write, {})]
+        )
         ingester.process()
         self.assertEqual(len(storage.messages), 1)
 
