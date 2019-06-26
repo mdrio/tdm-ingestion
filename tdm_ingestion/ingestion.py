@@ -41,11 +41,17 @@ class TimeSeries:
                 'sensorcode': str(self.sensorcode),
                 'measure': self.measure.to_dict()}
 
+    def __repr__(self):
+        return str(self.to_dict())
+
 
 class Message:
     def __init__(self, key: str, value: str):
         self.key = key
         self.value = value
+
+    def __repr__(self):
+        return f'key: {self.key}, value {self.value}'
 
 
 class Consumer(ABC):
